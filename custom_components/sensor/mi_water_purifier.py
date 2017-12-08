@@ -10,12 +10,14 @@ _LOGGER = logging.getLogger(__name__)
 
 REQUIREMENTS = ['python-miio==0.3.1']
 
+MODE = {'name': 'Mode', 'key': 'mode'}
 TAP_WATER_QUALITY = {'name': 'Tap water', 'key': 'ttds'}
 FILTERED_WATER_QUALITY = {'name': 'Filtered water', 'key': 'ftds'}
 PP_COTTON_FILTER_REMAINING = {'name': 'PP cotton filter', 'key': 'pfd', 'days_key': 'pfp'}
 FRONT_ACTIVE_CARBON_FILTER_REMAINING = {'name': 'Front active carbon filter', 'key': 'fcfd', 'days_key': 'fcfp'}
 RO_FILTER_REMAINING = {'name': 'RO filter', 'key': 'rfd', 'days_key': 'rfp'}
 REAR_ACTIVE_CARBON_FILTER_REMAINING = {'name': 'Rear active carbon filter', 'key': 'rcfd', 'days_key': 'rcfp'}
+
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
@@ -33,6 +35,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         device = Device(host, token)
         waterPurifier = XiaomiWaterPurifier(device, name)
         devices.append(waterPurifier)
+        devices.append(XiaomiWaterPurifierSensor(waterPurifier, MODE))
         devices.append(XiaomiWaterPurifierSensor(waterPurifier, TAP_WATER_QUALITY))
         devices.append(XiaomiWaterPurifierSensor(waterPurifier, FILTERED_WATER_QUALITY))
         devices.append(XiaomiWaterPurifierSensor(waterPurifier, PP_COTTON_FILTER_REMAINING))
@@ -67,6 +70,11 @@ class XiaomiWaterPurifierSensor(Entity):
         if self._data_key['key'] is TAP_WATER_QUALITY['key'] or \
            self._data_key['key'] is FILTERED_WATER_QUALITY['key']:
             return 'mdi:water'
+        elif self._data_key['key'] is MODE['key']:
+            if self._data[MODE['key']] == 'purifying':
+                return 'mdi:water'
+            else:
+                return 'mdi:water-off'
         else:
             return 'mdi:filter-outline'
 
@@ -81,6 +89,8 @@ class XiaomiWaterPurifierSensor(Entity):
         if self._data_key['key'] is TAP_WATER_QUALITY['key'] or \
            self._data_key['key'] is FILTERED_WATER_QUALITY['key']:
             return 'TDS'
+        elif self._data_key['key'] is MODE['key']:
+            return ''
         return '%'
 
     @property
@@ -144,6 +154,7 @@ class XiaomiWaterPurifier(Entity):
     def device_state_attributes(self):
         """Return the state attributes of the last update."""
         attrs = {}
+        attrs[MODE['name']] = self._data[MODE['key']]
         attrs[TAP_WATER_QUALITY['name']] = '{}TDS'.format(self._data[TAP_WATER_QUALITY['key']])
         attrs[PP_COTTON_FILTER_REMAINING['name']] = '{}%'.format(self._data[PP_COTTON_FILTER_REMAINING['key']])
         attrs[FRONT_ACTIVE_CARBON_FILTER_REMAINING['name']] = '{}%'.format(self._data[FRONT_ACTIVE_CARBON_FILTER_REMAINING['key']])
@@ -171,6 +182,9 @@ class XiaomiWaterPurifier(Entity):
             rcfd = int((status[17] - status[9]) / 24)
             data[REAR_ACTIVE_CARBON_FILTER_REMAINING['days_key']] = rcfd
             data[REAR_ACTIVE_CARBON_FILTER_REMAINING['key']] = math.floor(rcfd * 24 * 100 / status[17])
+
+            mode_status = self._device.send('get_prop', ['mode'])
+            data[MODE['key']] = mode_status[0]
 
             self._data = data
             self._state = self._data[FILTERED_WATER_QUALITY['key']]
