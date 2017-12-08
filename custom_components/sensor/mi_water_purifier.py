@@ -67,16 +67,20 @@ class XiaomiWaterPurifierSensor(Entity):
     @property
     def icon(self):
         """Icon to use in the frontend, if any."""
-        if self._data_key['key'] is TAP_WATER_QUALITY['key'] or \
-           self._data_key['key'] is FILTERED_WATER_QUALITY['key']:
-            return 'mdi:water'
+        if self._data_key['key'] is TAP_WATER_QUALITY['key']:
+            return 'mdi:water-pump'
+        elif self._data_key['key'] is FILTERED_WATER_QUALITY['key']:
+            return 'mdi:cup-water'
         elif self._data_key['key'] is MODE['key']:
             if self._data[MODE['key']] == 'purifying':
                 return 'mdi:water'
             else:
                 return 'mdi:water-off'
         else:
-            return 'mdi:filter-outline'
+            if self._data[self._data_key['key']] >= 1:
+              return 'mdi:filter-outline'
+            else:
+              return 'mdi:filter-remove-outline'
 
     @property
     def state(self):
